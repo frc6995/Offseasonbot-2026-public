@@ -1,0 +1,280 @@
+package frc.robot.subsystems;
+
+import java.util.function.Supplier;
+
+import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
+
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Robot;
+import frc.robot.util.POI;
+import frc.robot.subsystems.dyerotor.DyeRotor;
+import frc.robot.subsystems.dyerotor.DyeRotorIOSimTalonFX;
+import frc.robot.subsystems.dyerotor.DyeRotorIOTalonFX;
+import frc.robot.subsystems.dyerotor.DyeRotor.DyeRotorState;
+import frc.robot.subsystems.flywheel.Flywheel;
+import frc.robot.subsystems.flywheel.FlywheelIOSimTalonFX;
+import frc.robot.subsystems.flywheel.FlywheelIOTalonFX;
+import frc.robot.subsystems.flywheel.Flywheel.FlywheelConstants;
+import frc.robot.subsystems.flywheel.Flywheel.FlywheelState;
+import frc.robot.subsystems.hood.Hood;
+import frc.robot.subsystems.hood.HoodIOTalonFX;
+import frc.robot.subsystems.hood.Hood.HoodConstants;
+import frc.robot.subsystems.hood.Hood.HoodState;
+import frc.robot.subsystems.hood.HoodIOSimTalonFX;
+import frc.robot.subsystems.intake.Intake;
+import frc.robot.subsystems.intake.IntakeIOSimTalonFX;
+import frc.robot.subsystems.intake.IntakeIOTalonFX;
+import frc.robot.subsystems.turret.Turret;
+import frc.robot.subsystems.turret.TurretIOSimTalonFX;
+import frc.robot.subsystems.turret.TurretIOTalonFX;
+import frc.robot.subsystems.turret.Turret.TurretState;
+import frc.robot.subsystems.turret.Turret.UnwindTarget;
+import frc.robot.subsystems.intake.Intake.IntakeState;
+import frc.robot.util.ShotProjection;
+import frc.robot.util.ShotProjection.ShotConstants;
+
+public class Superstructure extends SubsystemBase {
+
+    public enum RobotState {
+        IDLE,
+        PASSING,
+        SCORING,
+        SAFE_SHOT
+    }
+
+    public Intake m_intake;
+    public Hood m_hood;
+    public Flywheel m_flywheel;
+    public Turret m_turret;
+    public DyeRotor m_dyeRotor;
+    private final BooleanPublisher isZeroedPublisher;
+    private boolean isZeroed = false;
+    RobotState robotState = RobotState.IDLE;
+
+    private final Supplier<SwerveDriveState> m_swerveState;
+    private final Trigger m_neutralZoneTrigger;
+
+    public final ShotProjection m_shotProjector;
+
+    public Superstructure(Supplier<SwerveDriveState> swerveState) {
+        this.m_swerveState = swerveState;
+        m_shotProjector = new ShotProjection(ShotConstants.kTofData, HoodConstants.kAngleData,
+                FlywheelConstants.kShooterData, FlywheelConstants.kPassingShooterData, HoodConstants.kPassingAngleData);
+
+        m_neutralZoneTrigger = new Trigger(
+                () -> POI.PASSING_ZONE.get().contains(m_swerveState.get().Pose.getTranslation()));
+
+        if (Robot.isSimulation()) {
+            this.m_intake = new Intake(new IntakeIOSimTalonFX());
+            this.m_hood = new Hood(new HoodIOSimTalonFX(), () -> m_shotProjector.hoodDeg);
+            this.m_flywheel = new Flywheel(new FlywheelIOSimTalonFX(), () -> m_shotProjector.rpm);
+            this.m_turret = new Turret(new TurretIOSimTalonFX(), () -> Math.toDegrees(m_shotProjector.robotAngleRad));
+            this.m_dyeRotor = new DyeRotor(new DyeRotorIOSimTalonFX());
+
+        } else {
+            this.m_intake = new Intake(new IntakeIOTalonFX());
+            this.m_hood = new Hood(new HoodIOTalonFX(), () -> m_shotProjector.hoodDeg);
+            this.m_flywheel = new Flywheel(new FlywheelIOTalonFX(), () -> m_shotProjector.rpm);
+            this.m_turret = new Turret(new TurretIOTalonFX(), () -> Math.toDegrees(m_shotProjector.robotAngleRad));
+            this.m_dyeRotor = new DyeRotor(new DyeRotorIOTalonFX());
+        }
+        m_neutralZoneTrigger.debounce(0.5)
+            .onTrue(
+                Commands.runOnce(() -> m_turret.requestAimCentral()))
+            .onFalse(
+                Commands.runOnce(() -> m_turret.requestAimClosest()));
+
+        isZeroedPublisher = NetworkTableInstance.getDefault().getBooleanTopic("IsZeroed").publish();
+
+    }
+
+    @Override
+    public void periodic() {
+        if (DriverStation.isDisabled()) {
+
+            robotState = RobotState.IDLE;
+        }
+
+        if(!isZeroed) {
+            isZeroed = m_turret.isZerod() && m_intake.isZeroed() && m_hood.isZeroed();
+            isZeroedPublisher.accept(isZeroed);
+        }
+
+        if (robotState == RobotState.PASSING) {
+            var state = m_swerveState.get();
+            var pose = state.Pose;
+            var goalPose = POI.PASSING_WALL_START.get();
+            m_shotProjector.solvePassing(
+                    pose.getX(),
+                    pose.getY(),
+                    pose.getRotation().getRadians(),
+                    goalPose.getX(),
+                    POI.PASSING_ANGLE.get().getRadians());
+
+        } else if (robotState == RobotState.IDLE) {
+
+            var pose = m_swerveState.get().Pose;
+            var wall = POI.PASSING_WALL_START.get();
+            var hub = POI.HUB_CENTER.get();
+            m_shotProjector.solveIdle(
+                    pose.getX(),
+                    pose.getY(),
+                    pose.getRotation().getRadians(),
+                    wall.getX(),
+                    hub.getX(),
+                    hub.getY());
+
+        } else {
+            var state = m_swerveState.get();
+            var goalPose = POI.HUB_CENTER.get();
+            var pose = state.Pose;
+
+            var fieldRelativeSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(state.Speeds, pose.getRotation());
+
+            m_shotProjector.solve(
+                    pose.getX(),
+                    pose.getY(),
+                    pose.getRotation().getRadians(),
+                    fieldRelativeSpeeds.vxMetersPerSecond,
+                    fieldRelativeSpeeds.vyMetersPerSecond,
+                    goalPose.getX(),
+                    goalPose.getY(),
+                    ShotConstants.kShotDelay);
+
+        }
+
+        m_dyeRotor.setReverseEnabled(m_intake.getState() == IntakeState.ACTIVE);
+        m_dyeRotor.setEjecting(m_intake.getState() == IntakeState.EJECTING);
+
+        if(robotState == RobotState.SCORING || robotState == RobotState.PASSING) {
+            if(!m_turret.atSetpoint()) {
+                m_dyeRotor.requestIdle();
+            } else if(m_dyeRotor.getSpinState() == DyeRotorState.IDLE) {
+                m_dyeRotor.requestSpinNoDelay();
+            }
+        }
+    }
+
+    public Command requestIntakeActive() {
+        return Commands.runOnce(() -> m_intake.requestActive());
+    }
+
+    public Command requestIntakeMiniAgitate() {
+        return Commands.runOnce(() -> m_intake.requestMiniAgitate());
+    }
+
+    public Command requestIntakeFullAgitate() {
+        return Commands.runOnce(() -> m_intake.requestFullAgitate());
+    }
+
+    public Command requestIntakeForShootAndIntake() {
+        return Commands.runOnce(() -> {
+            if (isInPassingZone()) {
+                m_intake.requestActive();
+            } else {
+                m_intake.requestMiniAgitate();
+            }
+        });
+    }
+
+    public Command requestIntakeIdle() {
+        return Commands.runOnce(() -> m_intake.requestIdle());
+    }
+
+    public Command requestIntakeEject() {
+        return Commands.runOnce(() -> m_intake.requestEject());
+    }
+
+    public Command requestFlywheelActive() {
+        return Commands.runOnce(() -> m_flywheel.requestActive());
+    }
+    public Command requestTurretUnwind(UnwindTarget target) {
+        return Commands.runOnce(() -> m_turret.requestUnwind(target));
+    }
+
+    public Command requestRobotIdle() {
+        return Commands.runOnce(() -> {
+            robotState = RobotState.IDLE;
+            m_dyeRotor.requestIdle();
+            if(m_neutralZoneTrigger.getAsBoolean()) {
+                m_turret.requestAimCentral();
+            } else {
+                m_turret.requestAimClosest();
+            }
+            m_flywheel.requestDisable();
+            m_hood.requestDisable();
+        });
+    }
+
+    public Command requestRobotScoring() {
+        return Commands.runOnce(() -> engageShootState(RobotState.SCORING));
+    }
+
+    public Command requestRobotPassing() {
+        return Commands.runOnce(() -> engageShootState(RobotState.PASSING));
+    }
+
+    public Command requestRobotShooting() {
+        return Commands.runOnce(() -> {
+            RobotState targetState = determineShootState();
+            engageShootState(targetState);
+        });
+    }
+
+    public Command requestRobotShootSafe() {
+        return Commands.runOnce(() -> {
+            engageShootState(RobotState.SAFE_SHOT);
+        });
+    }
+
+    private RobotState determineShootState() {
+        return isInPassingZone() ? RobotState.PASSING : RobotState.SCORING;
+    }
+
+    private boolean isInPassingZone() {
+        return POI.PASSING_ZONE.get().contains(m_swerveState.get().Pose.getTranslation());
+    }
+
+    private void engageShootState(RobotState state) {
+        switch (state) {
+            case SCORING -> {
+                m_turret.requestAimClosest();
+                m_flywheel.requestActive();
+                m_hood.requestActive();
+            }
+            case PASSING -> {
+                m_turret.requestAimCentral();
+                m_flywheel.requestActive();
+                m_hood.requestActive();
+            }
+            case SAFE_SHOT -> {
+                m_turret.setState(TurretState.SAFE_SHOT);
+                m_flywheel.setState(FlywheelState.SAFE_SHOT);
+                m_hood.setState(HoodState.SAFE_SHOT);
+            }
+
+        }
+        robotState = state;
+        m_dyeRotor.requestSpin();
+    }
+
+    public RobotState getRobotState() {
+        return robotState;
+    }
+
+    public Command requestHomeMechanisms() {
+        return Commands.runOnce(() -> {
+            m_intake.resetEncoder();
+            m_hood.resetEncoder();
+            m_turret.resetEncoder();
+        }).ignoringDisable(true);
+    }
+
+}

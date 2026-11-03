@@ -1,0 +1,293 @@
+package frc.robot.subsystems.intake;
+
+import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.epilogue.Logged.Importance;
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
+import edu.wpi.first.wpilibj.util.Color8Bit;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.RobotVisualizer;
+import frc.robot.util.currentlimit.CurrentLimit;
+
+public class Intake extends SubsystemBase {
+
+    public static final class IntakeConstants {
+        public static final int kKICKER_MOTOR_ID = 34;
+        public static final int kROLLER_LEAD_MOTOR_ID = 30;
+        public static final int kROLLER_FOLLOWER_MOTOR_ID = 31;
+        public static final int kEXTENSION_LEAD_MOTOR_ID = 32;
+        public static final int kEXTENSION_FOLLOWER_MOTOR_ID = 33;
+
+        public static final double kIntakeSignalFrequencyHz = 100.0;
+
+        public static final double kKickerSupplyCurrentLimitAmps = 30;
+        public static final double kKickerStatorCurrentLimitAmps = 80;
+        public static final double kKickerMaxVolts = 10;
+        public static final double kKickerMinVolts = -10;
+        public static final double kKickerReduction = 1.5;
+        public static final double kKickerToleranceRPM = 10;
+        public static final double kKickerMOI = 0.0000292639653;
+        public static final double kKickerEjectingVoltage = -10.0;
+        public static final double kKickerForwardVoltage = 10.0;
+        public static final double kKickerIdleVolts = 0.0;
+
+        public static final double kRollerSupplyCurrentLimitAmps = 40;
+        public static final double kRollerStatorCurrentLimitAmps = 80;
+        public static final double kRollerMaxVolts = 10;
+        public static final double kRollerMinVolts = -10;
+        public static final double kRollerReduction = 3.45;
+        public static final double kRollerToleranceRPM = 10;
+        public static final double kRollerMOI = 0.0000292639653;
+        public static final double kRollerEjectingVoltage = -10.0;
+        public static final double kRollerForwardVoltage = 10.0;
+        public static final double kRollerIdleVolts = 2.0;
+
+        public static final double kExtensionP = 5.0;
+
+        public static final double kExtensionV = 0.07;
+
+        public static final double kExtensionStatorCurrentLimitAmps = 20.0;
+        public static final double kExtensionSupplyCurrentLimitAmps = 20.0;
+        public static final double kExtensionReduction = 3.33;
+        public static final double kExtensionMaxMeters = IntakeIOTalonFX.mechanismRotationsToMeters(3.83);
+        public static final double kExtensionMinMeters = 0.0;
+
+        public static final double kCadExtensionMaxMeters = 0.31;
+        public static final double kIntakeAngleDegrees = 10.8;
+        public static final double kDrumCircumferenceMeters = 0.119;
+        public static final double kExtensionAccelerationRotationsPerSec2 = 200.0;
+        public static final double kExtensionCruiseVelocityRotationsPerSec = 20.0;
+
+        public static final double kFullAgitateNearMeters = IntakeIOTalonFX.mechanismRotationsToMeters(2.0);
+        public static final double kFullAgitateFarMeters = kExtensionMaxMeters;
+        public static final double kMediumAgitateNearMeters = kFullAgitateNearMeters;
+        public static final double kMediumAgitateFarMeters = kFullAgitateNearMeters + 0.05;
+        public static final double kMiniAgitateNearMeters = IntakeIOTalonFX.mechanismRotationsToMeters(3.4);
+        public static final double kMiniAgitateFarMeters = kExtensionMaxMeters;
+        public static final double kMiniAgitateIntervalSeconds = 0.15;
+        public static final double kFullAgitateIntervalSeconds = 0.4;
+        public static final double kAgitateToleranceMeters = 0.02;
+    }
+
+    public enum IntakeState {
+        RETRACTED,
+        ACTIVE,
+        IDLE,
+        MINI_AGITATE,
+        FULL_AGITATE,
+        EJECTING
+    }
+
+    private final IntakeIO io;
+    private final IntakeIO.IntakeInputs inputs = new IntakeIO.IntakeInputs();
+
+    private boolean isZeroed = false;
+
+    private final MechanismLigament2d intakeLigament = new MechanismLigament2d("intake", Units.inchesToMeters(8), 10.854, 6,
+            new Color8Bit(52, 235, 137));
+
+    private IntakeState intakeState = IntakeState.RETRACTED;
+
+    private double commandedExtensionMeters;
+
+    private final Timer agitateTimer = new Timer();
+    private boolean agitateAtNearPosition = false;
+    private boolean fullAgitateReachedSetpoint = false;
+
+    public Intake() {
+        this(new IntakeIO() {
+        });
+    }
+
+    public Intake(IntakeIO io) {
+        this.io = io;
+        RobotVisualizer.addIntake(intakeLigament);
+    }
+
+    public void stop() {
+        intakeState = IntakeState.IDLE;
+        io.stop();
+    }
+
+    public void setState(IntakeState state) {
+        if ((state == IntakeState.MINI_AGITATE || state == IntakeState.FULL_AGITATE) && intakeState != IntakeState.MINI_AGITATE && intakeState != IntakeState.FULL_AGITATE) {
+            agitateAtNearPosition = false;
+            fullAgitateReachedSetpoint = false;
+            agitateTimer.restart();
+        }
+        intakeState = state;
+    }
+
+    public void requestActive() {
+        setState(IntakeState.ACTIVE);
+    }
+
+    public void requestIdle() {
+        setState(IntakeState.IDLE);
+    }
+
+    public void requestMiniAgitate() {
+        setState(IntakeState.MINI_AGITATE);
+    }
+
+    public void requestFullAgitate() {
+        setState(IntakeState.FULL_AGITATE);
+    }
+
+    public void requestEject() {
+        setState(IntakeState.EJECTING);
+    }
+
+    public void resetEncoder() {
+        io.resetEncoder();
+        isZeroed = true;
+    }
+
+    public boolean isZeroed(){
+        return isZeroed;
+    }
+
+    public void setRollerCurrentLimit(CurrentLimit limit) {
+        io.setRollerCurrentLimits(limit.statorCurrentLimitAmps(), limit.supplyCurrentLimitAmps());
+    }
+
+    public void setKickerCurrentLimit(CurrentLimit limit) {
+        io.setKickerCurrentLimits(limit.statorCurrentLimitAmps(), limit.supplyCurrentLimitAmps());
+    }
+
+    public void setExtensionCurrentLimit(CurrentLimit limit) {
+        io.setExtensionCurrentLimits(limit.statorCurrentLimitAmps(), limit.supplyCurrentLimitAmps());
+    }
+
+    @Logged(name = "State", importance = Importance.CRITICAL)
+    public IntakeState getState() {
+        return intakeState;
+    }
+
+    @Logged(name = "Extension/Position", importance =  Importance.INFO)
+    public double getExtensionPositionMeters() {
+        return inputs.extensionPositionMeters;
+    }
+
+    @Logged(name = "Roller/Voltage", importance = Importance.DEBUG)
+    public double getRollerAppliedVolts() {
+        return inputs.rollerAppliedVolts;
+    }
+
+    @Logged(name = "Kicker/Voltage", importance =  Importance.DEBUG)
+    public double getKickAppliedVolts() {
+        return inputs.kickerAppliedVolts;
+    }
+
+    @Logged(name = "Roller/Stator Current", importance =  Importance.DEBUG)
+    public double getRollerStatorCurrentAmps() {
+        return inputs.rollerStatorCurrentAmps;
+    }
+
+    @Logged(name = "Kicker/Stator Current", importance =  Importance.DEBUG)
+    public double getKickStatorCurrentAmps() {
+        return inputs.kickerStatorCurrentAmps;
+    }
+
+    @Logged(name = "Extension/Stator Current", importance =  Importance.DEBUG)
+    public double getExtensionStatorCurrentAmps() {
+        return inputs.extensionStatorCurrentAmps;
+    }
+
+    @Override
+    public void periodic() {
+        if (DriverStation.isDisabled()) {
+
+            setState(IntakeState.IDLE);
+        }
+
+        io.updateInputs(inputs);
+
+        io.setKickerVoltage(resolveKickerTargetVoltage(intakeState));
+        io.setRollerVoltage(resolveRollerTargetVoltage(intakeState));
+        io.setExtensionPosition(clampExtension(resolveExtensionTargetPosition(intakeState)));
+    }
+
+    @Override
+    public void simulationPeriodic() {
+        double retractedLengthMeters = Units.inchesToMeters(8.0);
+        double extensionMeters = inputs.extensionPositionMeters;
+        intakeLigament.setLength(retractedLengthMeters + extensionMeters);
+        RobotVisualizer.updateIntakeExtension(
+                extensionMeters * IntakeConstants.kCadExtensionMaxMeters / IntakeConstants.kExtensionMaxMeters);
+    }
+
+    private double resolveExtensionTargetPosition(IntakeState state) {
+        return switch (state) {
+            case IDLE -> IntakeConstants.kExtensionMaxMeters;
+            case RETRACTED -> IntakeConstants.kExtensionMinMeters;
+            case ACTIVE -> IntakeConstants.kExtensionMaxMeters;
+            case MINI_AGITATE -> resolveMiniAgitateTargetPosition();
+            case FULL_AGITATE -> resolveFullAgitateTargetPosition();
+            case EJECTING -> IntakeConstants.kExtensionMaxMeters;
+        };
+    }
+
+    private double resolveMiniAgitateTargetPosition() {
+        if (agitateTimer.advanceIfElapsed(IntakeConstants.kMiniAgitateIntervalSeconds)) {
+            agitateAtNearPosition = !agitateAtNearPosition;
+        }
+        return agitateAtNearPosition ? IntakeConstants.kMiniAgitateNearMeters : IntakeConstants.kMiniAgitateFarMeters;
+    }
+
+    private double resolveMediumAgitateTargetPosition() {
+        if (agitateTimer.advanceIfElapsed(IntakeConstants.kMiniAgitateIntervalSeconds)) {
+            agitateAtNearPosition = !agitateAtNearPosition;
+        }
+        return agitateAtNearPosition ? IntakeConstants.kMediumAgitateNearMeters : IntakeConstants.kMediumAgitateFarMeters;
+    }
+
+    private double resolveFullAgitateTargetPosition() {
+        if (!fullAgitateReachedSetpoint
+            && MathUtil.isNear(IntakeConstants.kFullAgitateNearMeters, inputs.extensionPositionMeters, IntakeConstants.kAgitateToleranceMeters)) {
+            fullAgitateReachedSetpoint = true;
+        }
+
+        if (fullAgitateReachedSetpoint) {
+            return resolveMediumAgitateTargetPosition();
+        }
+        if (agitateTimer.advanceIfElapsed(IntakeConstants.kFullAgitateIntervalSeconds)) {
+            agitateAtNearPosition = !agitateAtNearPosition;
+        }
+        return agitateAtNearPosition ? IntakeConstants.kFullAgitateNearMeters : IntakeConstants.kFullAgitateFarMeters;
+    }
+
+    private static double clampExtension(double positionMeters) {
+        return MathUtil.clamp(
+                positionMeters,
+                IntakeConstants.kExtensionMinMeters,
+                IntakeConstants.kExtensionMaxMeters);
+    }
+
+    private double resolveRollerTargetVoltage(IntakeState state) {
+        return switch (state) {
+            case IDLE -> IntakeConstants.kRollerIdleVolts;
+            case RETRACTED -> 0.0;
+            case ACTIVE -> IntakeConstants.kRollerForwardVoltage;
+            case MINI_AGITATE -> IntakeConstants.kRollerForwardVoltage;
+            case FULL_AGITATE -> IntakeConstants.kRollerIdleVolts;
+            case EJECTING -> IntakeConstants.kRollerEjectingVoltage;
+
+        };
+    }
+
+    private double resolveKickerTargetVoltage(IntakeState state) {
+        return switch (state) {
+            case IDLE -> IntakeConstants.kKickerIdleVolts;
+            case RETRACTED -> 0.0;
+            case ACTIVE -> IntakeConstants.kKickerForwardVoltage;
+            case MINI_AGITATE -> IntakeConstants.kKickerForwardVoltage;
+            case FULL_AGITATE -> IntakeConstants.kKickerForwardVoltage;
+            case EJECTING -> IntakeConstants.kKickerEjectingVoltage;
+
+        };
+    }
+}

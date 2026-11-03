@@ -1,0 +1,189 @@
+package frc.robot.subsystems.dyerotor;
+
+import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.epilogue.Logged.Importance;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.RobotVisualizer;
+
+public class DyeRotor extends SubsystemBase {
+    public static final class DyeRotorConstants {
+
+        public static final int kSpinMotorCANID = 23;
+        public static final int kLeadIndexMotorCANID = 21;
+        public static final int kFollowIndexMotorCANID = 22;
+
+        public static final double kSpinReduction = 35;
+        public static final double kIndexReduction = 2.5;
+        public static final double kSpinMOI = 0.004;
+        public static final double kIndexMOI = 0.002;
+
+        public static final double kSpinStatorCurrentLimitAmps = 120.0;
+        public static final double kSpinSupplyCurrentLimitAmps = 120.0;
+        public static final double kIndexStatorCurrentLimitAmps = 300.0;
+        public static final double kIndexSupplyCurrentLimitAmps = 120.0;
+
+        public static final double kSpinKP = 5.0;
+        public static final double kSpinKS = 0.31;
+        public static final double kSpinKV = 4.0;
+
+        public static final double kIndexKP = 0.5;
+        public static final double kIndexKS = 0.3;
+        public static final double kIndexKV = 0.31;
+
+        public static final double kSpinForwardRPM = 120.0;
+        public static final double kSpinBackwardRPM = 30.0;
+        public static final double kSpinEjectBackwardRPM = 90.0;
+        public static final double kSpinVelocityToleranceRPM = 20.0;
+
+        public static final double kIndexForwardRPM = 2160.0;
+        public static final double kIndexBackwardRPM = 0.0;
+
+        public static final double kIndexSpinUpDelaySecs = 0.2;
+        public static final double kHookSpinUpDelaySecs = 0.4;
+
+        public static final double kMinAppliedVolts = 0.0;
+        public static final double kMaxAppliedVolts = 11.0;
+
+        public static final double kSpinIdleReverseVolts = -10.0;
+
+        private DyeRotorConstants() {
+        }
+    }
+
+    public enum DyeRotorState {
+        IDLE,
+        DELAYED,
+        SPIN;
+    }
+
+    private final DyeRotorIO io;
+    private final DyeRotorIO.DyeRotorInputs inputs = new DyeRotorIO.DyeRotorInputs();
+
+    private DyeRotorState spinState = DyeRotorState.IDLE;
+    private DyeRotorState indexState = DyeRotorState.IDLE;
+
+    private static final double kLoopPeriodSecs = 0.02;
+
+    private boolean reverseEnabled = false;
+    private boolean ejecting = false;
+
+    private int indexSpinUpTicksRemaining = 0;
+    private int spinSpinUpTicksRemaining = 0;
+
+    public DyeRotor() {
+        this(new DyeRotorIO() {
+        });
+    }
+
+    public DyeRotor(DyeRotorIO io) {
+        this.io = io;
+    }
+
+    public void setEjecting(boolean ejecting) {
+        this.ejecting = ejecting;
+    }
+
+    public void setReverseEnabled(boolean enabled) {
+        reverseEnabled = enabled;
+    }
+
+    public void stop() {
+        cancelPendingSpinUp();
+        spinState = DyeRotorState.IDLE;
+        indexState = DyeRotorState.IDLE;
+    }
+
+    public void setState(DyeRotorState state) {
+        spinState = state;
+        indexState = state;
+    }
+
+    public void requestIdle() {
+        cancelPendingSpinUp();
+        setState(DyeRotorState.IDLE);
+    }
+
+    public void requestSpin() {
+        indexState = DyeRotorState.DELAYED;
+        spinState = DyeRotorState.DELAYED;
+        indexSpinUpTicksRemaining = ticksFor(DyeRotorConstants.kIndexSpinUpDelaySecs);
+        spinSpinUpTicksRemaining = ticksFor(DyeRotorConstants.kHookSpinUpDelaySecs);
+    }
+
+    public void requestSpinNoDelay() {
+        indexState = DyeRotorState.SPIN;
+        spinState = DyeRotorState.SPIN;
+    }
+
+    private void cancelPendingSpinUp() {
+        indexState = DyeRotorState.IDLE;
+        spinState = DyeRotorState.IDLE;
+        indexSpinUpTicksRemaining = 0;
+        spinSpinUpTicksRemaining = 0;
+    }
+
+    private static int ticksFor(double seconds) {
+        return (int) Math.ceil(seconds / kLoopPeriodSecs);
+    }
+
+    @Logged(name = "Spin State", importance = Importance.CRITICAL)
+    public DyeRotorState getSpinState() {
+        return spinState;
+    }
+
+    @Logged(name = "Index State", importance = Importance.CRITICAL)
+    public DyeRotorState getIndexState() {
+        return indexState;
+    }
+
+    @Logged(name = "Spin Velocity", importance = Importance.INFO)
+    public double getSpinVelocityRPM() {
+        return inputs.spinVelocityRPM;
+    }
+
+    @Logged(name = "Index Velocity", importance = Importance.INFO)
+    public double getIndexVelocityRPM() {
+        return inputs.indexVelocityRPM;
+    }
+
+    @Override
+    public void periodic() {
+        if (DriverStation.isDisabled()) {
+
+            setState(DyeRotorState.IDLE);
+        }
+
+        if (indexSpinUpTicksRemaining > 0 && --indexSpinUpTicksRemaining <= 0) {
+            indexState = DyeRotorState.SPIN;
+        }
+        if (spinSpinUpTicksRemaining > 0 && --spinSpinUpTicksRemaining <= 0) {
+            spinState = DyeRotorState.SPIN;
+        }
+
+        io.updateInputs(inputs);
+
+        io.setSpinVelocity(resolveSpinTargetRPM(spinState));
+        io.setIndexVelocity(resolveIndexTargetRPM(indexState));
+    }
+
+  @Override
+  public void simulationPeriodic() {
+
+    RobotVisualizer.updateHook(resolveSpinTargetRPM(spinState) * 2 * Math.PI / 60.0 * kLoopPeriodSecs);
+  }
+
+    private double resolveSpinTargetRPM(DyeRotorState state) {
+        return switch (state) {
+            case IDLE, DELAYED -> ejecting ? -DyeRotorConstants.kSpinEjectBackwardRPM : -DyeRotorConstants.kSpinBackwardRPM;
+            case SPIN -> DyeRotorConstants.kSpinForwardRPM;
+        };
+    }
+
+    private static double resolveIndexTargetRPM(DyeRotorState state) {
+        return switch (state) {
+            case IDLE, DELAYED -> 0.0;
+            case SPIN -> DyeRotorConstants.kIndexForwardRPM;
+        };
+    }
+}

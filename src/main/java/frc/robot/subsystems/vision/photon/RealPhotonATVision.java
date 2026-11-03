@@ -1,0 +1,81 @@
+package frc.robot.subsystems.vision.photon;
+
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTable;
+import frc.robot.subsystems.vision.ATVision.ATVisionConstants;
+
+import java.util.ArrayList;
+import org.photonvision.EstimatedRobotPose;
+import org.photonvision.targeting.PhotonTrackedTarget;
+
+import java.util.List;
+
+public class RealPhotonATVision {
+    public class PhotonVisionConstants {
+        public static final String[] PHOTON_IDS = {
+            "photon-right",
+            "photon-left"
+        };
+
+        public static final Transform3d[] PHOTON_OFFSETS = {
+            new Transform3d(new Translation3d(Units.inchesToMeters(-9.61264), Units.inchesToMeters(9.23195), Units.inchesToMeters(21.35530)), new Rotation3d(Units.degreesToRadians(0), Units.degreesToRadians(-30), Units.degreesToRadians(-90))),
+            new Transform3d(new Translation3d(Units.inchesToMeters(-9.61264), Units.inchesToMeters(12.14763), Units.inchesToMeters(21.35530)), new Rotation3d(Units.degreesToRadians(180), Units.degreesToRadians(-30), Units.degreesToRadians(90)))
+        };
+
+        public static final AprilTagFieldLayout kTagLayout =
+                AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltAndymark);
+
+        public static final double[] kStdDevCoefficients = {0.3, 0.5};
+
+        public static final String TABLE_ID = "Photon";
+    }
+
+    private PhotonATModule[] cameras;
+
+    private final NetworkTable photonTable;
+
+    public RealPhotonATVision(NetworkTable visionTable) {
+        cameras = new PhotonATModule[PhotonVisionConstants.PHOTON_IDS.length];
+
+        photonTable = visionTable.getSubTable(PhotonVisionConstants.TABLE_ID);
+
+        for(int i = 0; i < cameras.length; i++) {
+            cameras[i] = new PhotonATModule(PhotonVisionConstants.PHOTON_IDS[i], PhotonVisionConstants.PHOTON_OFFSETS[i], photonTable);
+        }
+    }
+
+    public void periodic() {
+        for(var cam : cameras) {
+            cam.periodic();
+        }
+    }
+
+    public ArrayList<EstimatedRobotPose> getLatestEstimates() {
+        var estimates = new ArrayList<EstimatedRobotPose>();
+        for (var cam : cameras) {
+            estimates.addAll(cam.getLatestEstimates());
+        }
+        return estimates;
+    }
+
+    public Matrix<N3, N1> getEstimationStdDevs(List<PhotonTrackedTarget> targets) {
+        double tagArea = 0;
+        for(var target : targets) tagArea += target.getArea();
+
+        double xydevs = PhotonVisionConstants.kStdDevCoefficients[0] / tagArea / ATVisionConstants.kOptimalTagCount;
+        double thetadevs = PhotonVisionConstants.kStdDevCoefficients[1] / tagArea / ATVisionConstants.kOptimalTagCount;
+        return VecBuilder.fill(
+                xydevs,
+                xydevs,
+                thetadevs);
+    }
+}

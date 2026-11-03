@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hood angle calculator — REBUILT hub shot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* NOMAD brand, dark mode. The page is dark in every viewer setting. */
+:root{
+  --paper:#0F130E; --panel:#161B14; --ink:#E9EEE4; --ink-2:#A8B39E; --ink-3:#6D7866;
+  --grid:#1D241B; --grid-2:#2B3428; --line:#252D22;
+  --fuel:#8ebf2b; --fuel-edge:#69882c; --rim:#E5484D; --steel:#87927F; --steel-fill:#1E251C;
+  --ok:#8ebf2b; --warn:#FFAA55; --focus:#8ebf2b;
+  --code-bg:#0A0D09; --code-ink:#E9EEE4; --code-dim:#7C8873;
+  --brand-green:#8ebf2b; --brand-green-dark:#69882c;
+  --font-body:"Akisdenz-Grotesk","Akisdenz Grotesk","Lexend","Century Gothic","CenturyGothic",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-head:"Kabel","Kabel LT Std","ITC Kabel Std","Akisdenz-Grotesk","Lexend","Century Gothic","CenturyGothic",system-ui,sans-serif;
+  color-scheme:dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+  --paper:#0F130E; --panel:#161B14; --ink:#E9EEE4; --ink-2:#A8B39E; --ink-3:#6D7866;
+  --grid:#1D241B; --grid-2:#2B3428; --line:#252D22;
+  --fuel:#8ebf2b; --fuel-edge:#69882c; --rim:#E5484D; --steel:#87927F; --steel-fill:#1E251C;
+  --ok:#8ebf2b; --warn:#FFAA55; --focus:#8ebf2b;
+  --code-bg:#0A0D09; --code-ink:#E9EEE4; --code-dim:#7C8873;
+  --brand-green:#8ebf2b; --brand-green-dark:#69882c;
+  }
+}
+:root[data-theme="dark"],:root[data-theme="light"]{
+  --paper:#0F130E; --panel:#161B14; --ink:#E9EEE4; --ink-2:#A8B39E; --ink-3:#6D7866;
+  --grid:#1D241B; --grid-2:#2B3428; --line:#252D22;
+  --fuel:#8ebf2b; --fuel-edge:#69882c; --rim:#E5484D; --steel:#87927F; --steel-fill:#1E251C;
+  --ok:#8ebf2b; --warn:#FFAA55; --focus:#8ebf2b;
+  --code-bg:#0A0D09; --code-ink:#E9EEE4; --code-dim:#7C8873;
+  --brand-green:#8ebf2b; --brand-green-dark:#69882c;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font:300 16px/1.5 var(--font-body);font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 20px 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px;margin-bottom:14px}
+h1{font:600 1.65rem/1.15 var(--font-head);margin:0;letter-spacing:.005em}
+h1 .brand{color:var(--brand-green)}
+header p{margin:0;color:var(--ink-2);font-size:.95rem}
+h2{font:500 1.05rem/1.3 var(--font-head);margin:0 0 10px;color:var(--ink)}
+.top{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+@media (max-width:900px){.top,.bottom{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+/* Plot */
+.plot{padding:0;overflow:hidden}
+.plot svg{display:block;width:100%;height:auto;aspect-ratio:16/9;background:var(--paper)}
+.dist-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid var(--line)}
+.dist-row label{font-weight:600;white-space:nowrap}
+.dist-row input[type=range]{flex:1;min-width:140px}
+@media (max-width:640px){.dist-row{flex-wrap:wrap}.dist-row input[type=range]{order:3;flex-basis:100%}.dist-row label{flex:1}}
+.dist-val{font:500 1.35rem/1 var(--font-head);color:var(--brand-green);min-width:5.2ch;text-align:right}
+.readout{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line)}
+.readout div{padding:10px 16px;border-right:1px solid var(--line)}
+.readout div:last-child{border-right:0}
+.readout dt{font-size:.8rem;color:var(--ink-2)}
+.readout dd{margin:0;font:500 1.3rem/1.2 var(--font-head)}
+.readout .hood dd{font-size:1.9rem;color:var(--ink)}
+.readout .hood{background:color-mix(in srgb,var(--fuel) 18%,transparent)}
+@media (max-width:640px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}.readout div{border-bottom:1px solid var(--line)}.readout .hood{grid-column:1/-1}}
+.status{padding:8px 16px;font-size:.9rem;color:var(--ink-2);border-top:1px solid var(--line);min-height:2.4em}
+.status.warn{color:var(--warn)}
+.strip{padding:10px 16px 12px;border-top:1px solid var(--line)}
+.strip-head{display:flex;justify-content:space-between;font-size:.8rem;color:var(--ink-2);margin-bottom:4px}
+.strip svg{display:block;width:100%;height:56px}
+/* Controls */
+.controls .group+.group{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.field{margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.field-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.field label{font-weight:500}
+.field .code-name{font:400 .78rem "JetBrains Mono",ui-monospace,monospace;color:var(--ink-3)}
+.field .val{font-weight:600;min-width:3.5ch;text-align:right}
+.hint{font-size:.82rem;color:var(--ink-2);margin:2px 0 0}
+input[type=range]{width:100%;accent-color:var(--brand-green);margin:4px 0 0}
+.num-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 12px}
+.num label{display:block;font-size:.86rem;font-weight:500;margin-bottom:2px}
+.num input{width:100%;min-width:0;font:inherit;font-weight:600;padding:5px 8px;border:1px solid var(--grid-2);border-radius:4px;background:var(--paper);color:var(--ink)}
+.check{display:flex;align-items:center;gap:8px;font-weight:500;margin-bottom:10px}
+.check input{width:18px;height:18px;accent-color:var(--brand-green)}
+details summary{cursor:pointer;font:500 1.05rem var(--font-head)}
+details[open] summary{margin-bottom:10px}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* Table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th{text-align:right;font-weight:600;color:var(--ink-2);font-size:.82rem;padding:4px 8px;border-bottom:1px solid var(--grid-2)}
+th:first-child,td:first-child{text-align:left}
+td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--grid)}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:color-mix(in srgb,var(--fuel) 10%,transparent)}
+tbody tr.current td{background:color-mix(in srgb,var(--fuel) 24%,transparent)}
+td.hoodcol{font-weight:700}
+td.note{color:var(--ink-2);font-size:.85rem;text-align:left}
+td.note.warn{color:var(--warn)}
+tr.skip td{color:var(--ink-3)}
+/* Code */
+.code-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.code-head h2{margin:0}
+button{font:500 .95rem var(--font-body);padding:7px 14px;border-radius:4px;border:1px solid var(--brand-green);background:var(--brand-green);color:#0F130E;cursor:pointer}
+button:hover{background:var(--brand-green-dark);border-color:var(--brand-green-dark);opacity:1}
+button:hover{opacity:.88}
+pre{margin:0;background:var(--code-bg);color:var(--code-ink);font:400 .86rem/1.55 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;padding:14px 16px;border-radius:5px;overflow-x:auto;white-space:pre}
+pre .c{color:var(--code-dim)}
+.fit-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+.fit-head h2{margin:0}
+.deg{font-size:.9rem;font-weight:500;display:flex;align-items:center;gap:6px}
+.deg select{font:inherit;font-weight:600;padding:3px 6px;border:1px solid var(--grid-2);border-radius:4px;background:var(--paper);color:var(--ink)}
+.foot{margin-top:10px;font-size:.85rem;color:var(--ink-2)}
+.computing{opacity:.55;transition:opacity .15s}
+@media (prefers-reduced-motion:reduce){.computing{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1><span class="brand">NOMAD</span> Hood angle calculator</h1>
+  <p>REBUILT hub, 72 in ring. Picks the hood angle; tune flywheel RPM on the robot.</p>
+</header>
+
+<div class="top">
+  <section class="panel plot" aria-label="Shot preview">
+    <svg id="plot" viewBox="0 0 16 9" role="img" aria-label="Side view of the shot trajectory into the hub"></svg>
+    <div class="dist-row">
+      <label for="dist">Distance to hub center</label>
+      <input id="dist" type="range" min="0.5" max="10" step="0.1" value="3">
+      <span class="dist-val" id="distVal">3.0 m</span>
+    </div>
+    <dl class="readout" id="readout">
+      <div class="hood"><dt>Hood angle</dt><dd id="rHood">–</dd></div>
+      <div><dt>Launch angle</dt><dd id="rLaunch">–</dd></div>
+      <div><dt>Exit speed window</dt><dd id="rSpeed">–</dd></div>
+      <div><dt>Time of flight</dt><dd id="rTof">–</dd></div>
+      <div><dt>Entry angle</dt><dd id="rEntry">–</dd></div>
+    </dl>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="strip">
+      <div class="strip-head"><span>Weighted score across hood travel</span><span id="stripRange"></span></div>
+      <svg id="strip" viewBox="0 0 400 56" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+  </section>
+
+  <aside class="panel controls" aria-label="Settings">
+    <div class="group">
+      <h2>Scoring weights</h2>
+      <div class="field">
+        <div class="field-top"><label for="wV">Speed tolerance</label><span class="val" id="wVv"></span></div>
+        <input id="wV" type="range" min="0" max="1" step="0.05" value="0.5">
+        <div class="field-top"><span class="hint">Wider range of RPM that still scores</span><span class="code-name">vel_error_weight</span></div>
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="wX">Landing margin</label><span class="val" id="wXv"></span></div>
+        <input id="wX" type="range" min="0" max="1" step="0.05" value="0.3">
+        <div class="field-top"><span class="hint">Distance from the rim after aim error</span><span class="code-name">dx_weight</span></div>
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="wT">Flight time</label><span class="val" id="wTv"></span></div>
+        <input id="wT" type="range" min="0" max="1" step="0.05" value="0.2">
+        <div class="field-top"><span class="hint">Shorter time in the air</span><span class="code-name">tof_weight</span></div>
+      </div>
+      <p class="hint">Weights are relative; they don't need to add up to 1.</p>
+    </div>
+
+    <div class="group">
+      <h2>Constant entry angle</h2>
+      <div class="field">
+        <div class="field-top"><label for="eT">Target entry angle</label><span class="val" id="eTv"></span></div>
+        <input id="eT" type="range" min="30" max="80" step="1" value="50">
+        <div class="field-top"><span class="hint">Degrees below horizontal as the ball drops through the ring</span></div>
+      </div>
+      <div class="field">
+        <div class="field-top"><label for="eK">Influence on the shot</label><span class="val" id="eKv"></span></div>
+        <input id="eK" type="range" min="0" max="100" step="5" value="0">
+        <div class="field-top"><span class="hint">0% off · 100% ignores the weights above</span></div>
+      </div>
+      <p class="hint">Moves the hood from the weighted pick toward the angle that hits the target entry angle. 50% lands halfway between. Higher values keep the arc shape the same across distances.</p>
+    </div>
+
+    <div class="group">
+      <h2>Aim point</h2>
+      <div class="field">
+        <div class="field-top"><label for="bias">Where the shot lands</label><span class="val" id="biasv"></span></div>
+        <input id="bias" type="range" min="-1" max="1" step="0.05" value="0">
+        <div class="field-top"><span class="hint">−1 front</span><span class="hint">0 center</span><span class="hint">+1 back</span></div>
+      </div>
+      <p class="hint">Shifts the target along the ring opening. Speed tolerance and landing margin are measured from this point, so aiming off-center trades some margin on the near side.</p>
+    </div>
+
+    <div class="group">
+      <h2>Hood calibration</h2>
+      <div class="num-grid">
+        <div class="num"><label for="C">Launch at hood 0°</label><input id="C" type="number" step="0.5" value="85"></div>
+        <div class="num"><label for="gain">Launch ° per hood °</label><input id="gain" type="number" step="0.05" value="1"></div>
+        <div class="num"><label for="hMin">Hood min °</label><input id="hMin" type="number" step="1" value="0"></div>
+        <div class="num"><label for="hMax">Hood max °</label><input id="hMax" type="number" step="1" value="40"></div>
+      </div>
+      <p class="hint">Launch angle = launch at hood 0° − (per-hood-degree × hood angle).</p>
+    </div>
+
+    <div class="group">
+      <details>
+        <summary>Model settings</summary>
+        <label class="check"><input id="drag" type="checkbox"> Include air drag</label>
+        <div class="num-grid">
+          <div class="num"><label for="cd">Drag coefficient</label><input id="cd" type="number" step="0.05" value="0.5"></div>
+          <div class="num"><label for="mass">Ball mass (kg)</label><input id="mass" type="number" step="0.005" value="0.215"></div>
+          <div class="num"><label for="vmax">Max exit speed (m/s)</label><input id="vmax" type="number" step="0.5" value="14"></div>
+          <div class="num"><label for="h0">Shooter height (m)</label><input id="h0" type="number" step="0.005" value="0.559"></div>
+          <div class="num"><label for="dv">Speed error ± (m/s)</label><input id="dv" type="number" step="0.05" value="0.1"></div>
+          <div class="num"><label for="da">Angle error ± (°)</label><input id="da" type="number" step="0.25" value="1"></div>
+        </div>
+        <p class="hint">Ring 1.829 m (72 in) high, 1.194 m (47 in) across, base opening 12 in below. Fuel 0.150 m. Distances are hub center to robot center (turret).</p>
+      </details>
+    </div>
+  </aside>
+</div>
+
+<div class="bottom">
+  <section class="panel">
+    <h2>Angle table, 0.5 m steps</h2>
+    <div class="tbl-wrap">
+      <table id="table">
+        <thead><tr><th>Distance</th><th>Hood</th><th>Launch</th><th>Exit speed (m/s)</th><th>TOF (s)</th><th style="text-align:left">Note</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="foot">Click a row to preview it. Speeds are what the model predicts the ball needs, not flywheel surface speed.</p>
+  </section>
+  <section class="panel">
+    <div class="code-head"><h2>For Hood.java</h2><button id="copy" type="button">Copy code</button></div>
+    <pre id="code"></pre>
+    <p class="foot">Add an RPM entry at each of these distances in <code>kShooterData</code> and tune them on the field.</p>
+    <div class="fit-head">
+      <h2>Hood angle vs distance, polynomial fit</h2>
+      <label class="deg">Degree
+        <select id="deg"><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+      </label>
+    </div>
+    <pre id="fit"></pre>
+    <p class="foot" id="fitErr"></p>
+    <div class="fit-head">
+      <h2>Time of flight, for ShooterController</h2>
+      <button id="copyTof" type="button">Copy code</button>
+    </div>
+    <pre id="tofCode"></pre>
+    <p class="foot">From release until the ball drops through the ring, at each row’s hood angle and aim speed. These match the table’s hood angles, not the polynomial’s.</p>
+  </section>
+</div>
+</div>
+
+<script>
+"use strict";
+const G = 9.81, RING_H = 1.8288, RING_D = 1.1938, BALL_D = 0.150, BODY_H = 1.524; // 72 in ring, 47 in across, base opening 60 in
+const $ = id => document.getElementById(id);
+
+/* ---------- physics ---------- */
+function makeModel(p){
+  const r = BALL_D/2, R = RING_D/2;
+  const k = 0.5*1.2*p.cd*Math.PI*r*r/p.mass;
+  function sim(v, thDeg, D, trace){
+    const th = thDeg*Math.PI/180, xf = D - R;
+    let vx = v*Math.cos(th), vy = v*Math.sin(th);
+    if (!p.drag){
+      const disc = vy*vy - 2*G*(RING_H - p.h0);
+      const tf = xf/vx, yf = p.h0 + vy*tf - 0.5*G*tf*tf;
+      if (disc < 0) return {xl:-1e9, yf, t:0, entry:0};
+      const tl = (vy + Math.sqrt(disc))/G, vyl = vy - G*tl;
+      if (trace){
+        const tEnd = (vy + Math.sqrt(Math.max(0, vy*vy - 2*G*(RING_H - 0.35 - p.h0))))/G, pts = [];
+        for (let i = 0; i <= 140; i++){ const t = tEnd*i/140; pts.push([vx*t, p.h0 + vy*t - 0.5*G*t*t]); }
+        trace.pts = pts;
+      }
+      return {xl: vx*tl, yf, t: tl, entry: Math.atan2(-vyl, vx)*180/Math.PI};
+    }
+    let x = 0, y = p.h0, t = 0, yf = -1e9;
+    const dt = trace ? 0.004 : 0.008, pts = trace ? [[0, p.h0]] : null;
+    while (t < 6){
+      let s = Math.hypot(vx, vy);
+      const mvx = vx + (-k*s*vx)*dt/2, mvy = vy + (-G - k*s*vy)*dt/2;
+      s = Math.hypot(mvx, mvy);
+      const nx = x + mvx*dt, ny = y + mvy*dt, nvx = vx - k*s*mvx*dt, nvy = vy + (-G - k*s*mvy)*dt;
+      if (x < xf && nx >= xf) yf = y + (ny - y)*(xf - x)/(nx - x);
+      if (nvy < 0 && ny < RING_H && y >= RING_H){
+        const f = (y - RING_H)/(y - ny), xl = x + (nx - x)*f;
+        if (trace){
+          pts.push([xl, RING_H]);
+          let tx = xl, ty = RING_H, tvx = nvx, tvy = nvy;
+          for (let i = 0; i < 60 && ty > RING_H - 0.35; i++){ tx += tvx*0.005; ty += tvy*0.005; tvy -= G*0.005; pts.push([tx, ty]); }
+          trace.pts = pts;
+        }
+        return {xl, yf, t: t + dt*f, entry: Math.atan2(-nvy, nvx)*180/Math.PI};
+      }
+      if (nvy < 0 && ny < RING_H) { if (trace) trace.pts = pts; return {xl:-1e9, yf, t, entry:0}; }
+      if (!trace && nx > D + R + 2 && ny > RING_H) return {xl:1e9, yf, t, entry:0};
+      x = nx; y = ny; vx = nvx; vy = nvy; t += dt;
+      if (trace) pts.push([x, y]);
+    }
+    if (trace) trace.pts = pts;
+    return {xl:-1e9, yf, t, entry:0};
+  }
+  // Range of exit speeds that clear the front rim and drop through the ring.
+  function speedWindow(thDeg, D){
+    const xf = D - R, xb = D + R, VMAX = p.vmax;
+    const gLo = v => { const s = sim(v, thDeg, D); return Math.min(s.xl - (xf + r), s.yf - (RING_H + r)); };
+    const gHi = v => (xb - r) - sim(v, thDeg, D).xl;
+    if (gLo(VMAX) < 0) return null;
+    let a = 0.5, b = VMAX;
+    for (let i = 0; i < 16; i++){ const m = (a + b)/2; if (gLo(m) >= 0) b = m; else a = m; }
+    const vlo = b; if (gHi(vlo) < 0) return null;
+    let vhi = VMAX;
+    if (gHi(VMAX) < 0){ a = vlo; b = VMAX; for (let i = 0; i < 16; i++){ const m = (a + b)/2; if (gHi(m) >= 0) a = m; else b = m; } vhi = a; }
+    return {vlo, vhi};
+  }
+  function evalAngle(thDeg, D){
+    const w = speedWindow(thDeg, D); if (!w) return null;
+    const xf = D - R, xb = D + R;
+    // Aim point: -1 = front of the usable opening, 0 = center, +1 = back.
+    const xAim = D + p.bias*(R - r);
+    let a = w.vlo, b = w.vhi;
+    for (let i = 0; i < 16; i++){ const m = (a + b)/2; if (sim(m, thDeg, D).xl < xAim) a = m; else b = m; }
+    const vm = (a + b)/2, s = sim(vm, thDeg, D);
+    const dxv = Math.abs(sim(vm + p.dv, thDeg, D).xl - sim(vm - p.dv, thDeg, D).xl)/2;
+    const dxa = Math.abs(sim(vm, thDeg + p.da, D).xl - sim(vm, thDeg - p.da, D).xl)/2;
+    return {th: thDeg, vlo: w.vlo, vhi: w.vhi, vm,
+      tol: 2*Math.min(vm - w.vlo, w.vhi - vm)/vm,                  // speed slack on the tighter side
+      clearance: Math.min(s.xl - (xf + r), (xb - r) - s.xl) - (dxv + dxa),
+      tof: s.t, entry: s.entry};
+  }
+  function candidates(D){
+    if (D - R <= r) return {status: 'inside', cands: []};
+    const cands = [];
+    for (let hood = p.hoodMin; hood <= p.hoodMax + 1e-9; hood += 0.25){
+      const th = p.C - p.gain*hood;
+      if (th >= 89.5 || th <= 1) continue;
+      const e = evalAngle(th, D); if (e){ e.hood = hood; cands.push(e); }
+    }
+    return {status: cands.length ? 'ok' : 'none', cands};
+  }
+  return {sim, candidates};
+}
+
+// Scores only need the cached candidate metrics, so weight changes are instant.
+function pick(res, w){
+  if (res.status !== 'ok') return null;
+  const c = res.cands;
+  const rng = key => { let lo = Infinity, hi = -Infinity; for (const e of c){ lo = Math.min(lo, e[key]); hi = Math.max(hi, e[key]); } return [lo, hi]; };
+  const [a1, b1] = rng('tol'), [a2, b2] = rng('clearance'), [a3, b3] = rng('tof');
+  const n = (v, lo, hi) => hi - lo < 1e-12 ? 1 : (v - lo)/(hi - lo);
+  const sumW = w.wV + w.wX + w.wT || 1;
+  let opt = null, near = null;
+  const scores = c.map(e => {
+    const s = (w.wV*n(e.tol, a1, b1) + w.wX*n(e.clearance, a2, b2) + w.wT*(1 - n(e.tof, a3, b3)))/sumW;
+    if (!opt || s > opt.s) opt = {e, s};
+    const dE = Math.abs(e.entry - w.eT);
+    if (!near || dE < near.dE) near = {e, dE};
+    return s;
+  });
+  // Entry-angle influence blends the hood angle itself: 0% = optimizer's pick,
+  // 100% = the hood angle whose entry angle is closest to the target.
+  let best = opt.e;
+  if (w.eK > 0){
+    const goal = (1 - w.eK)*opt.e.hood + w.eK*near.e.hood;
+    for (const e of c) if (Math.abs(e.hood - goal) < Math.abs(best.hood - goal)) best = e;
+  }
+  return {best, scores};
+}
+
+/* ---------- state ---------- */
+const TABLE_D = []; for (let d = 0.5; d <= 10.0001; d += 0.5) TABLE_D.push(Math.round(d*10)/10);
+let params, model, physKey = '', cache = new Map(), job = 0;
+
+function readParams(){
+  const num = (id, fb) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : fb; };
+  const hMin = num('hMin', 0), hMax = num('hMax', 40);
+  return {
+    C: num('C', 85), gain: num('gain', 1) || 1,
+    hoodMin: Math.min(hMin, hMax), hoodMax: Math.max(hMin, hMax),
+    drag: $('drag').checked, cd: Math.max(0, num('cd', 0.5)), mass: Math.max(0.01, num('mass', 0.215)),
+    vmax: Math.max(2, num('vmax', 14)), h0: num('h0', 0.559),
+    bias: Math.max(-1, Math.min(1, +$('bias').value)),
+    dv: Math.max(0.001, num('dv', 0.1)), da: Math.max(0.01, num('da', 1)),
+  };
+}
+const weights = () => ({wV: +$('wV').value, wX: +$('wX').value, wT: +$('wT').value, eT: +$('eT').value, eK: +$('eK').value/100});
+function getRes(D){
+  const key = D.toFixed(2);
+  if (!cache.has(key)) cache.set(key, model.candidates(D));
+  return cache.get(key);
+}
+
+/* ---------- rendering ---------- */
+const fmt = (v, d = 1) => v.toFixed(d);
+const hoodFmt = h => { const v = Math.round(h*100)/100; return Number.isInteger(v) ? v.toFixed(1) : String(v); };
+
+function drawPlot(D, sol){
+  const svg = $('plot');
+  const traces = [];
+  if (sol){
+    const b = sol.best;
+    for (const [v, kind] of [[b.vlo, 'lo'], [b.vhi, 'hi'], [b.vm, 'mid']]){
+      const tr = {}; model.sim(v, b.th, D, tr); traces.push({pts: tr.pts || [], kind});
+    }
+  }
+  let yTop = RING_H + 0.5;
+  for (const t of traces) for (const [, y] of t.pts) yTop = Math.max(yTop, y + 0.3);
+  let x0 = -0.7, x1 = D + RING_D/2 + 1.3, y0 = -0.15, y1 = yTop;
+  // Keep 1:1 scale inside a 16:9 frame.
+  let w = x1 - x0, h = y1 - y0;
+  if (w/h > 16/9){ const nh = w*9/16; y1 = y0 + nh; h = nh; } else { const nw = h*16/9; x1 = x0 + nw; w = nw; }
+  svg.setAttribute('viewBox', `${x0} ${-y1} ${w} ${h}`);
+  const Y = y => -y, u = w/160; // unit stroke ≈ 1/160 of width
+  const step = w > 9 ? 1 : 0.5;
+  let s = '';
+  for (let gx = Math.ceil(x0/step)*step; gx <= x1; gx += step)
+    s += `<line x1="${gx}" y1="${Y(y0)}" x2="${gx}" y2="${Y(y1)}" stroke="var(--grid)" stroke-width="${u*0.5}"/>`;
+  for (let gy = 0; gy <= y1; gy += step)
+    s += `<line x1="${x0}" y1="${Y(gy)}" x2="${x1}" y2="${Y(gy)}" stroke="var(--grid)" stroke-width="${u*0.5}"/>`;
+  // ground + distance labels
+  s += `<line x1="${x0}" y1="0" x2="${x1}" y2="0" stroke="var(--ink-2)" stroke-width="${u*1.2}"/>`;
+  const fs = u*3.2;
+  for (let gx = 0; gx <= x1 - 0.2; gx += (w > 9 ? 1 : 0.5))
+    s += `<text x="${gx}" y="${fs*1.15}" font-size="${fs}" fill="var(--ink-3)" text-anchor="middle" font-family="inherit">${gx % 1 === 0 ? gx : gx.toFixed(1)}</text>`;
+  // robot (turret at x = 0)
+  s += `<rect x="-0.42" y="${Y(0.18)}" width="0.84" height="0.16" rx="0.03" fill="var(--steel-fill)" stroke="var(--steel)" stroke-width="${u}"/>`;
+  s += `<line x1="0" y1="${Y(0.18)}" x2="0" y2="${Y(params.h0)}" stroke="var(--steel)" stroke-width="${u*2}"/>`;
+  s += `<circle cx="0" cy="${Y(params.h0)}" r="${u*1.8}" fill="var(--ink)"/>`;
+  // hub: body up to the base opening, funnel flaring 12 in up to the ring
+  const R = RING_D/2, bw = R*0.85;
+  s += `<path d="M${D-bw} 0 L${D-bw} ${Y(BODY_H)} L${D-R} ${Y(RING_H)} L${D+R} ${Y(RING_H)} L${D+bw} ${Y(BODY_H)} L${D+bw} 0 Z" fill="var(--steel-fill)" stroke="var(--steel)" stroke-width="${u}"/>`;
+  s += `<line x1="${D-R}" y1="${Y(RING_H)}" x2="${D+R}" y2="${Y(RING_H)}" stroke="var(--paper)" stroke-width="${u*1.6}"/>`;
+  s += `<line x1="${D-R}" y1="${Y(RING_H)}" x2="${D+R}" y2="${Y(RING_H)}" stroke="var(--steel)" stroke-width="${u*0.6}" stroke-dasharray="${u*2} ${u*2}"/>`;
+  s += `<circle cx="${D-R}" cy="${Y(RING_H)}" r="${u*1.6}" fill="var(--rim)"/><circle cx="${D+R}" cy="${Y(RING_H)}" r="${u*1.6}" fill="var(--rim)"/>`;
+  { const xa = D + params.bias*(R - BALL_D/2), m = u*2.4;
+    s += `<path d="M${xa} ${Y(RING_H) - u*1.2} l${-m} ${-m*1.6} h${2*m} Z" fill="var(--ink)"/>`; }
+  s += `<text x="${D}" y="${Y(BODY_H*0.5)}" font-size="${fs}" fill="var(--ink-2)" text-anchor="middle" font-family="inherit">Hub</text>`;
+  s += `<text x="${D+R+u*3}" y="${Y(RING_H)+fs*0.35}" font-size="${fs}" fill="var(--ink-2)" font-family="inherit">72 in ring</text>`;
+  // trajectories
+  const path = pts => pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(4) + ' ' + Y(q[1]).toFixed(4)).join('');
+  for (const t of traces) if (t.kind !== 'mid' && t.pts.length)
+    s += `<path d="${path(t.pts)}" fill="none" stroke="var(--ink-3)" stroke-width="${u*0.8}" stroke-dasharray="${u*2.5} ${u*2}"/>`;
+  const mid = traces.find(t => t.kind === 'mid');
+  if (mid && mid.pts.length){
+    s += `<path d="${path(mid.pts)}" fill="none" stroke="var(--fuel-edge)" stroke-width="${u*3.4}" stroke-linecap="round"/>`;
+    s += `<path d="${path(mid.pts)}" fill="none" stroke="var(--fuel)" stroke-width="${u*2}" stroke-linecap="round"/>`;
+    // ball drawn where it drops through the ring
+    let bx = null; for (let i = 1; i < mid.pts.length; i++){ const [ax, ay] = mid.pts[i-1], [cx, cy] = mid.pts[i]; if (ay >= RING_H && cy < RING_H){ bx = ax + (cx - ax)*(ay - RING_H)/(ay - cy); break; } }
+    if (bx !== null) s += `<circle cx="${bx}" cy="${Y(RING_H + BALL_D/2)}" r="${BALL_D/2}" fill="var(--fuel)" stroke="var(--fuel-edge)" stroke-width="${u*0.8}"/>`;
+    const th = sol.best.th*Math.PI/180, L = Math.min(0.9, w*0.08);
+    s += `<path d="M${L*0.6} ${Y(params.h0)} A${L*0.6} ${L*0.6} 0 0 0 ${L*0.6*Math.cos(th)} ${Y(params.h0 + L*0.6*Math.sin(th))}" fill="none" stroke="var(--ink-2)" stroke-width="${u*0.7}"/>`;
+    s += `<text x="${L*0.75}" y="${Y(params.h0 + L*0.25)}" font-size="${fs}" fill="var(--ink-2)" font-family="inherit">${fmt(sol.best.th)}°</text>`;
+  }
+  svg.innerHTML = s;
+}
+
+function drawStrip(res, pk){
+  const svg = $('strip');
+  if (!pk){ svg.innerHTML = ''; $('stripRange').textContent = ''; return; }
+  const hMin = params.hoodMin, hMax = params.hoodMax, span = hMax - hMin || 1;
+  const sLo = Math.min(...pk.scores), sHi = Math.max(...pk.scores), sSpan = sHi - sLo || 1;
+  const X = h => (h - hMin)/span*400, Y = s => 52 - (s - sLo)/sSpan*48;
+  let d = '', prev = null;
+  res.cands.forEach((e, i) => {
+    const gap = prev !== null && e.hood - prev > 0.26;
+    d += (i === 0 || gap ? 'M' : 'L') + X(e.hood).toFixed(1) + ' ' + Y(pk.scores[i]).toFixed(1);
+    prev = e.hood;
+  });
+  const bx = X(pk.best.hood);
+  svg.innerHTML = `<rect x="0" y="0" width="400" height="56" fill="var(--paper)"/>` +
+    `<path d="${d}" fill="none" stroke="var(--ink-2)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>` +
+    `<line x1="${bx}" y1="0" x2="${bx}" y2="56" stroke="var(--fuel-edge)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  $('stripRange').textContent = `hood ${hMin}° to ${hMax}°, picked ${hoodFmt(pk.best.hood)}°`;
+}
+
+function renderCurrent(){
+  const D = +$('dist').value;
+  $('distVal').textContent = fmt(D) + ' m';
+  const res = getRes(D), pk = pick(res, weights());
+  const st = $('status'); st.className = 'status';
+  if (!pk){
+    ['rHood','rLaunch','rSpeed','rTof','rEntry'].forEach(id => $(id).textContent = '–');
+    st.classList.add('warn');
+    st.textContent = res.status === 'inside'
+      ? 'The shooter would be under the ring at this distance. Move farther out.'
+      : 'No hood angle in range scores from here. Try a larger max exit speed or check the hood calibration.';
+    drawPlot(D, null); drawStrip(res, null); return;
+  }
+  const b = pk.best;
+  $('rHood').textContent = hoodFmt(b.hood) + '°';
+  $('rLaunch').textContent = fmt(b.th) + '°';
+  $('rSpeed').textContent = `${fmt(b.vlo, 2)}–${fmt(b.vhi, 2)}`;
+  $('rTof').textContent = fmt(b.tof, 2) + ' s';
+  $('rEntry').textContent = fmt(b.entry, 0) + '°';
+  const lim = b.hood <= params.hoodMin + 1e-9 || b.hood >= params.hoodMax - 1e-9;
+  if (lim){ st.classList.add('warn'); st.textContent = 'The best angle is at a hood limit, so a better shot may exist outside the hood’s travel.'; }
+  else st.textContent = `Aim speed ${fmt(b.vm, 2)} m/s. Dashed arcs are the slowest and fastest shots that still score (−${fmt((b.vm-b.vlo)/b.vm*100, 1)}% / +${fmt((b.vhi-b.vm)/b.vm*100, 1)}% speed). Ball enters ${fmt(b.entry, 0)}° below horizontal${weights().eK > 0 ? ` (target ${weights().eT}°)` : ''}.`;
+  drawPlot(D, pk); drawStrip(res, pk);
+}
+
+function renderTable(){
+  const w = weights(), D = +$('dist').value, rows = [], javaRows = [], tofRows = [];
+  for (const d of TABLE_D){
+    const key = d.toFixed(2);
+    if (!cache.has(key)){ rows.push(`<tr class="skip" data-d="${d}"><td>${fmt(d)} m</td><td colspan="5" style="text-align:left">Computing…</td></tr>`); continue; }
+    const res = cache.get(key), pk = pick(res, w);
+    const cur = Math.abs(d - D) < 0.05 ? ' current' : '';
+    if (!pk){
+      rows.push(`<tr class="skip${cur}" data-d="${d}"><td>${fmt(d)} m</td><td>–</td><td>–</td><td>–</td><td>–</td><td class="note">${res.status === 'inside' ? 'Under the ring' : 'No shot in range'}</td></tr>`);
+      continue;
+    }
+    const b = pk.best, lim = b.hood <= params.hoodMin + 1e-9 || b.hood >= params.hoodMax - 1e-9;
+    rows.push(`<tr class="${cur.trim()}" data-d="${d}"><td>${fmt(d)} m</td><td class="hoodcol">${hoodFmt(b.hood)}°</td><td>${fmt(b.th)}°</td><td>${fmt(b.vlo, 2)}–${fmt(b.vhi, 2)}</td><td>${fmt(b.tof, 3)}</td><td class="note${lim ? ' warn' : ''}">${lim ? 'At hood limit' : ''}</td></tr>`);
+    javaRows.push([d, b.hood]); tofRows.push([d, b.tof]);
+  }
+  $('table').querySelector('tbody').innerHTML = rows.join('');
+  const settings = `launch@hood0=${params.C}°, ${params.gain}°/hood°, aim ${params.bias >= 0 ? '+' : ''}${params.bias.toFixed(2)}, weights ${w.wV}/${w.wX}/${w.wT}, entry ${w.eK > 0 ? w.eT + '° @ ' + Math.round(w.eK*100) + '%' : 'off'}, drag ${params.drag ? 'on (Cd ' + params.cd + ')' : 'off'}`;
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  let code = `public static final double[][] kAngleData = {\n`;
+  code += `        <span class="c">// Distance (Meters), Angle(Degrees)</span>\n`;
+  code += `        <span class="c">// ${esc(settings)}</span>\n`;
+  code += javaRows.map(([d, h], i) => `        { ${fmt(d)}, ${hoodFmt(h)} }${i < javaRows.length - 1 ? ',' : ''}`).join('\n');
+  code += `\n};`;
+  $('code').innerHTML = code;
+  let tof = `private static final double[][] kTimeOfFlightData = {\n`;
+  tof += `    <span class="c">// Distance (Meters), Time of flight to the ring (Seconds). Release delay not included.</span>\n`;
+  tof += `    <span class="c">// ${esc(settings)}</span>\n`;
+  tof += tofRows.map(([d, t], i) => `    { ${fmt(d)}, ${fmt(t, 3)} }${i < tofRows.length - 1 ? ',' : ''}`).join('\n');
+  tof += `\n};`;
+  $('tofCode').innerHTML = tof;
+  renderFit(javaRows);
+}
+
+/* ---------- polynomial fit ---------- */
+// Least squares via normal equations; fine for degree <= 4 over 1-10 m.
+function polyfit(xs, ys, deg){
+  const n = deg + 1, A = Array.from({length: n}, () => new Array(n + 1).fill(0));
+  for (let k = 0; k < xs.length; k++){
+    const p = [1]; for (let j = 1; j < 2*n; j++) p.push(p[j-1]*xs[k]);
+    for (let i = 0; i < n; i++){ for (let j = 0; j < n; j++) A[i][j] += p[i + j]; A[i][n] += p[i]*ys[k]; }
+  }
+  for (let c = 0; c < n; c++){
+    let piv = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    if (Math.abs(A[c][c]) < 1e-14) return null;
+    for (let r = 0; r < n; r++) if (r !== c){ const f = A[r][c]/A[c][c]; for (let j = c; j <= n; j++) A[r][j] -= f*A[c][j]; }
+  }
+  return A.map((row, i) => row[n]/A[i][i]); // coef[i] multiplies x^i
+}
+const polyval = (co, x) => co.reduceRight((acc, c) => acc*x + c, 0);
+const sig = v => { const t = Number(v.toPrecision(6)); return (t === 0 ? 0 : t).toString(); };
+
+function renderFit(rows){
+  const deg = +$('deg').value, pre = $('fit'), err = $('fitErr');
+  if (rows.length < deg + 2){ pre.textContent = 'Not enough table rows to fit yet.'; err.textContent = ''; return; }
+  const xs = rows.map(r => r[0]), ys = rows.map(r => r[1]), co = polyfit(xs, ys, deg);
+  if (!co){ pre.textContent = 'Fit failed.'; err.textContent = ''; return; }
+  // Human-readable form, highest power first.
+  let eq = 'hood = ';
+  for (let i = deg; i >= 0; i--){
+    const c = co[i], mag = sig(Math.abs(c)), term = i === 0 ? mag : i === 1 ? `${mag}·d` : `${mag}·d^${i}`;
+    eq += (i === deg ? (c < 0 ? '-' : '') : (c < 0 ? ' - ' : ' + ')) + term;
+  }
+  // Horner form for Java.
+  let java = sig(co[deg]);
+  for (let i = deg - 1; i >= 0; i--) java = `(${java}) * d + ${sig(co[i])}`;
+  java = java.replace(/\+ -/g, '- ');
+  let maxE = 0, at = xs[0];
+  for (const [x, y] of rows){ const e = Math.abs(polyval(co, x) - y); if (e > maxE){ maxE = e; at = x; } }
+  pre.innerHTML = `${eq}\n\n<span class="c">// d = distance to hub center (m), result in hood degrees</span>\n` +
+    `double hoodDeg = MathUtil.clamp(${java}, HOOD_MIN, HOOD_MAX);`;
+  err.textContent = `Fit over ${fmt(xs[0])}–${fmt(xs[xs.length-1])} m. Largest difference from the table: ${fmt(maxE, 2)}° at ${fmt(at)} m. Don't use it outside that range.`;
+}
+
+/* ---------- compute scheduling ---------- */
+function recompute(){
+  params = readParams();
+  const key = JSON.stringify(params);
+  if (key !== physKey){ physKey = key; model = makeModel(params); cache = new Map(); }
+  const my = ++job;
+  renderCurrent(); renderTable();
+  const todo = TABLE_D.filter(d => !cache.has(d.toFixed(2)));
+  if (!todo.length) return;
+  document.querySelector('.bottom').classList.add('computing');
+  let i = 0;
+  (function step(){
+    if (my !== job) return;
+    const t0 = performance.now();
+    while (i < todo.length && performance.now() - t0 < 30){ getRes(todo[i]); i++; }
+    renderTable();
+    if (i < todo.length) setTimeout(step, 0);
+    else document.querySelector('.bottom').classList.remove('computing');
+  })();
+}
+
+/* ---------- wiring ---------- */
+function syncWeightLabels(){ for (const id of ['wV','wX','wT']) $(id + 'v').textContent = (+$(id).value).toFixed(2); }
+for (const id of ['wV','wX','wT']) $(id).addEventListener('input', () => { syncWeightLabels(); renderCurrent(); renderTable(); });
+$('dist').addEventListener('input', () => { renderCurrent(); renderTable(); });
+let deb;
+for (const id of ['C','gain','hMin','hMax','cd','mass','vmax','h0','dv','da'])
+  $(id).addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(recompute, 250); });
+$('drag').addEventListener('change', recompute);
+$('deg').addEventListener('change', renderTable);
+const syncBias = () => { const v = +$('bias').value; $('biasv').textContent = (v > 0 ? '+' : '') + v.toFixed(2); };
+$('bias').addEventListener('input', () => { syncBias(); clearTimeout(deb); deb = setTimeout(recompute, 120); });
+syncBias();
+$('table').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-d]'); if (!tr) return;
+  $('dist').value = tr.dataset.d; renderCurrent(); renderTable();
+});
+function wireCopy(btnId, preId){
+  $(btnId).addEventListener('click', async () => {
+    const text = $(preId).textContent, btn = $(btnId);
+    try { await navigator.clipboard.writeText(text); }
+    catch { const r = document.createRange(); r.selectNodeContents($(preId)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); } catch {} }
+    btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy code', 1400);
+  });
+}
+wireCopy('copy', 'code'); wireCopy('copyTof', 'tofCode');
+function syncEntryLabels(){ $('eTv').textContent = $('eT').value + '°'; $('eKv').textContent = $('eK').value + '%'; }
+for (const id of ['eT','eK']) $(id).addEventListener('input', () => { syncEntryLabels(); renderCurrent(); renderTable(); });
+syncEntryLabels();
+syncWeightLabels();
+recompute();
+</script>
+</body>
+</html>
