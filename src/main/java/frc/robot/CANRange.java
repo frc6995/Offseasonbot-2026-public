@@ -4,10 +4,8 @@ import java.util.function.BooleanSupplier;
 
 import com.ctre.phoenix6.configs.CANrangeConfiguration;
 
-import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.wpilibj.RobotBase;
 
-@Logged
 public class CANRange {
 
     public class CANRangeConstants {

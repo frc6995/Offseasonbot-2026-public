@@ -2,11 +2,6 @@ package frc.robot;
 
 import com.ctre.phoenix6.SignalLogger;
 
-import edu.wpi.first.epilogue.Epilogue;
-import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.epilogue.NotLogged;
-import edu.wpi.first.epilogue.Logged.Importance;
-import edu.wpi.first.epilogue.logging.errors.ErrorHandler;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -17,11 +12,9 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.util.Elastic;
 import frc.robot.util.LoopTiming;
 
-@Logged(name="Robot", importance = Importance.CRITICAL)
 public class Robot extends TimedRobot {
     private Command m_autonomousCommand;
 
-    @NotLogged
     private double autoSimTime = 20.0;
 
     private final RobotContainer m_robotContainer;
@@ -32,18 +25,6 @@ public class Robot extends TimedRobot {
         SignalLogger.stop();
 
         m_robotContainer = new RobotContainer();
-
-        Epilogue.configure(config -> {
-
-            if (isSimulation()) {
-
-                config.errorHandler = ErrorHandler.crashOnError();
-            }
-
-            config.minimumImportance = Logged.Importance.CRITICAL;
-
-            config.backend = config.backend.lazy();
-        });
 
     }
 

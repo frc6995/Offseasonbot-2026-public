@@ -1,7 +1,5 @@
 package frc.robot.subsystems.intake;
 
-import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.epilogue.Logged.Importance;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -162,39 +160,8 @@ public class Intake extends SubsystemBase {
         io.setExtensionCurrentLimits(limit.statorCurrentLimitAmps(), limit.supplyCurrentLimitAmps());
     }
 
-    @Logged(name = "State", importance = Importance.CRITICAL)
     public IntakeState getState() {
         return intakeState;
-    }
-
-    @Logged(name = "Extension/Position", importance =  Importance.INFO)
-    public double getExtensionPositionMeters() {
-        return inputs.extensionPositionMeters;
-    }
-
-    @Logged(name = "Roller/Voltage", importance = Importance.DEBUG)
-    public double getRollerAppliedVolts() {
-        return inputs.rollerAppliedVolts;
-    }
-
-    @Logged(name = "Kicker/Voltage", importance =  Importance.DEBUG)
-    public double getKickAppliedVolts() {
-        return inputs.kickerAppliedVolts;
-    }
-
-    @Logged(name = "Roller/Stator Current", importance =  Importance.DEBUG)
-    public double getRollerStatorCurrentAmps() {
-        return inputs.rollerStatorCurrentAmps;
-    }
-
-    @Logged(name = "Kicker/Stator Current", importance =  Importance.DEBUG)
-    public double getKickStatorCurrentAmps() {
-        return inputs.kickerStatorCurrentAmps;
-    }
-
-    @Logged(name = "Extension/Stator Current", importance =  Importance.DEBUG)
-    public double getExtensionStatorCurrentAmps() {
-        return inputs.extensionStatorCurrentAmps;
     }
 
     @Override

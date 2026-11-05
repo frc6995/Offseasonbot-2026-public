@@ -42,13 +42,6 @@ public class Autos {
     private final Supplier<Pose2d> TRENCH_START_RIGHT_DEPOT =
         AllianceFlipUtil.flipped(RightDepot1Path.getStartPose());
 
-    private final Path LeftBump1Path = new Path("path-1".toLowerCase());
-    private final Path LeftBump2Path = new Path("path-2".toLowerCase());
-    private final Path RightBump1Path = mirroredCopy(LeftBump1Path);
-    private final Path RightBump2Path = mirroredCopy(LeftBump2Path);
-    private final Supplier<Pose2d> TRENCH_START_RIGHT =
-        AllianceFlipUtil.flipped(RightBump1Path.getStartPose());
-
     private final Path Testcanrange = new Path("Test-canrange".toLowerCase());
     private final Path Testcanrange2 = new Path("Test-canrange2".toLowerCase());
 
@@ -77,18 +70,6 @@ public class Autos {
 
         FollowPath.registerEventTrigger("stopScoring",
                 Commands.parallel(m_superstructure.requestRobotIdle(), superstructure.requestIntakeActive()));
-
-        FollowPath.registerEventTrigger("leftBumpStopIntake", m_superstructure.requestIntakeIdle());
-        FollowPath.registerEventTrigger("leftBumpStartShooter", m_superstructure.requestFlywheelActive());
-        FollowPath.registerEventTrigger("leftBumpStartShooting", m_superstructure.requestRobotScoring());
-        FollowPath.registerEventTrigger("leftBumpStartAgitating", m_superstructure.requestIntakeMiniAgitate());
-        FollowPath.registerEventTrigger("leftBumpStopAgitating", m_superstructure.requestIntakeIdle());
-        FollowPath.registerEventTrigger("leftBumpStopShooting", m_superstructure.requestRobotIdle());
-
-        FollowPath.registerEventTrigger("leftBumpStopIntakeAgain", m_superstructure.requestIntakeIdle());
-        FollowPath.registerEventTrigger("leftBumpStartShooterAgain", m_superstructure.requestFlywheelActive());
-        FollowPath.registerEventTrigger("leftBumpStartShootingAgain", m_superstructure.requestRobotScoring());
-        FollowPath.registerEventTrigger("leftBumpStartAgitatingAgain", m_superstructure.requestIntakeMiniAgitate());
 
         pathBuilder = new FollowPath.Builder(
                 m_drivetrain,
@@ -206,9 +187,4 @@ public class Autos {
         return group;
     }
 
-    private Command auto(Consumer<SequentialCommandGroup> builder) {
-        SequentialCommandGroup group = new SequentialCommandGroup();
-        builder.accept(group);
-        return group;
-    }
 }

@@ -2,8 +2,6 @@ package frc.robot.subsystems.hood;
 
 import java.util.function.Supplier;
 
-import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.epilogue.Logged.Importance;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -18,7 +16,7 @@ public class Hood extends SubsystemBase {
         public static final int kCANID = 44;
 
         public static final double[][] kAngleData = {
-
+// Generated from calculator, settings = launch@hood0=85°, 1°/hood°, aim +0.25, weights 0.35/0.15/0.2, drag off
         { 1.0, 5.75 },
         { 1.5, 11.75 },
         { 2.0, 14.75 },
@@ -151,28 +149,15 @@ public class Hood extends SubsystemBase {
         return clamped;
     }
 
-    @Logged(name = "State", importance = Importance.CRITICAL)
     public HoodState getState() {
         return hoodState;
     }
 
-    @Logged(name = "Angle", importance = Importance.INFO)
     public double getAngle() {
         return inputs.angle;
     }
 
-    @Logged(name = "Setpoint", importance = Importance.INFO)
-    public double getRequestedAngleDeg() {
-        return commandedAngleDeg;
-    }
-
-    @Logged(name = "Stator Current", importance = Importance.DEBUG)
     public double getStatorCurrent() {
         return inputs.statorCurrent;
-    }
-
-    @Logged(name = "Voltage", importance = Importance.DEBUG)
-    public double getVoltage() {
-        return inputs.appliedVolts;
     }
 }

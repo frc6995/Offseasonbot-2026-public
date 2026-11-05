@@ -6,8 +6,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import java.util.function.Supplier;
 
-import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.epilogue.Logged.Importance;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -243,34 +241,20 @@ public class Turret extends SubsystemBase {
         return angleDeg < TurretConstants.kMaxAngleDeg && angleDeg > TurretConstants.kMinAngleDeg;
     }
 
-    @Logged(name = "State", importance = Importance.CRITICAL)
     public TurretState getState() {
         return turretState;
     }
 
-    @Logged(name = "Angle", importance = Importance.INFO)
     public double getAngle() {
         return inputs.angle;
     }
 
-    @Logged(name = "Velocity", importance = Importance.DEBUG)
     public double getVelocity() {
         return inputs.velocity;
     }
 
-    @Logged(name = "Setpoint", importance = Importance.INFO)
-    public double getRequestedAngleDeg() {
-        return commandedAngleDeg;
-    }
-
-    @Logged(name = "Stator Current", importance = Importance.DEBUG)
     public double getStatorCurrent() {
         return inputs.statorCurrent;
-    }
-
-    @Logged(name = "Voltage", importance = Importance.DEBUG)
-    public double getVoltage() {
-        return inputs.appliedVolts;
     }
 
     public boolean atSetpoint() {

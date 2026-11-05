@@ -2,8 +2,6 @@ package frc.robot.subsystems.flywheel;
 
 import java.util.function.Supplier;
 
-import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.epilogue.Logged.Importance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -90,29 +88,8 @@ public class Flywheel extends SubsystemBase {
 
   }
 
-  @Logged(name = "State", importance = Importance.CRITICAL)
   public FlywheelState getState() {
     return flywheelState;
-  }
-
-  @Logged(name = "Velocity", importance = Importance.INFO)
-  public double getVelocityRPM() {
-    return inputs.velocityRPM;
-  }
-
-  @Logged(name = "Setpoint", importance = Importance.INFO)
-  public double getSetpointRPM() {
-    return resolveTargetRPM(flywheelState);
-  }
-
-  @Logged(name = "Voltage", importance = Importance.DEBUG)
-  public double getAppliedVolts() {
-    return inputs.appliedVolts;
-  }
-
-  @Logged(name = "Stator Currents", importance = Importance.DEBUG)
-  public double[] getMotorStatorCurrentsAmps() {
-    return inputs.motorStatorCurrentAmps;
   }
 
   @Override
